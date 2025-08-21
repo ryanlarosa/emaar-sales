@@ -69,7 +69,6 @@ export default function HomePage() {
     }
   };
 
-  // --- NEW: Function to handle pushing the data ---
   const handlePush = async (environment) => {
     if (!result) {
       setPushStatus({ ...pushStatus, error: "Generate a report first." });
@@ -88,7 +87,10 @@ export default function HomePage() {
         throw new Error(
           data.message || `Failed to push data to ${environment}`
         );
-      setPushStatus({ loading: false, success: data.message, error: "" });
+
+      // **THE FIX: Create a specific success message based on the environment.**
+      const successMessage = `Successfully pushed to ${environment.toUpperCase()} environment.`;
+      setPushStatus({ loading: false, success: successMessage, error: "" });
     } catch (err) {
       setPushStatus({ loading: false, success: "", error: err.message });
     }
@@ -147,7 +149,6 @@ export default function HomePage() {
             <h2 style={styles.resultTitle}>✅ Report Generated Successfully</h2>
             <pre style={styles.pre}>{JSON.stringify(result, null, 2)}</pre>
 
-            {/* --- NEW: Push Buttons and Status Display --- */}
             <div style={styles.pushContainer}>
               <button
                 onClick={() => handlePush("dev")}
@@ -164,6 +165,7 @@ export default function HomePage() {
                 {pushStatus.loading ? "Pushing..." : "Push to PROD"}
               </button>
             </div>
+            {/* The specific success message will now be displayed here */}
             {pushStatus.success && (
               <p style={styles.pushSuccess}>{pushStatus.success}</p>
             )}
@@ -177,7 +179,7 @@ export default function HomePage() {
   );
 }
 
-// --- Styles (with new additions) ---
+// --- Styles ---
 const styles = {
   container: {
     display: "flex",
@@ -265,17 +267,7 @@ const styles = {
     maxHeight: "300px",
     overflowY: "auto",
   },
-  // New Styles
   pushContainer: { display: "flex", gap: "10px", marginTop: "20px" },
-  pushButton: {
-    flex: 1,
-    padding: "10px",
-    border: "none",
-    borderRadius: "4px",
-    fontSize: "14px",
-    cursor: "pointer",
-    fontWeight: "600",
-  },
   pushButtonDev: {
     flex: 1,
     padding: "10px",
