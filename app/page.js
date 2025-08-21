@@ -1,14 +1,20 @@
-// File: app/page.js
 "use client";
 
 import { useState } from "react";
 
 export default function HomePage() {
+  // State for the main report generation
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  // Set default dates to the previous month for user convenience
+  // State for the API push action
+  const [pushStatus, setPushStatus] = useState({
+    loading: false,
+    success: "",
+    error: "",
+  });
+
   const getPreviousMonthRange = () => {
     const today = new Date();
     const firstDayOfCurrentMonth = new Date(
@@ -36,11 +42,12 @@ export default function HomePage() {
     setDateRange({ ...dateRange, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async (e) => {
+  const handleGenerateReport = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
     setResult(null);
+    setPushStatus({ loading: false, success: "", error: "" }); // Reset push status
 
     try {
       const response = await fetch("/api/process-sales", {
@@ -51,18 +58,39 @@ export default function HomePage() {
           toDate: dateRange.to,
         }),
       });
-
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Something went wrong");
-      }
-
+      if (!response.ok)
+        throw new Error(data.error || "Failed to generate report");
       setResult(data);
     } catch (err) {
       setError(err.message);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // --- NEW: Function to handle pushing the data ---
+  const handlePush = async (environment) => {
+    if (!result) {
+      setPushStatus({ ...pushStatus, error: "Generate a report first." });
+      return;
+    }
+    setPushStatus({ loading: true, success: "", error: "" });
+
+    try {
+      const response = await fetch("/api/push-to-emaar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ payload: result, environment: environment }),
+      });
+      const data = await response.json();
+      if (!response.ok)
+        throw new Error(
+          data.message || `Failed to push data to ${environment}`
+        );
+      setPushStatus({ loading: false, success: data.message, error: "" });
+    } catch (err) {
+      setPushStatus({ loading: false, success: "", error: err.message });
     }
   };
 
@@ -74,7 +102,7 @@ export default function HomePage() {
           Select a date range to fetch the Linga report and format it for Emaar.
         </p>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleGenerateReport}>
           <div style={styles.dateContainer}>
             <div>
               <label htmlFor="from" style={styles.label}>
@@ -103,7 +131,6 @@ export default function HomePage() {
               />
             </div>
           </div>
-
           <button type="submit" disabled={isLoading} style={styles.button}>
             {isLoading ? "Fetching & Processing..." : "Generate Report"}
           </button>
@@ -114,18 +141,35 @@ export default function HomePage() {
             <p>{error}</p>
           </div>
         )}
+
         {result && (
           <div style={styles.resultBox}>
-            <h2 style={styles.resultTitle}>✅ Generated Emaar Payload</h2>
+            <h2 style={styles.resultTitle}>✅ Report Generated Successfully</h2>
             <pre style={styles.pre}>{JSON.stringify(result, null, 2)}</pre>
-            <button
-              onClick={() =>
-                navigator.clipboard.writeText(JSON.stringify(result, null, 2))
-              }
-              style={styles.copyButton}
-            >
-              Copy JSON
-            </button>
+
+            {/* --- NEW: Push Buttons and Status Display --- */}
+            <div style={styles.pushContainer}>
+              <button
+                onClick={() => handlePush("dev")}
+                disabled={pushStatus.loading}
+                style={styles.pushButtonDev}
+              >
+                {pushStatus.loading ? "Pushing..." : "Push to DEV"}
+              </button>
+              <button
+                onClick={() => handlePush("prod")}
+                disabled={pushStatus.loading}
+                style={styles.pushButtonProd}
+              >
+                {pushStatus.loading ? "Pushing..." : "Push to PROD"}
+              </button>
+            </div>
+            {pushStatus.success && (
+              <p style={styles.pushSuccess}>{pushStatus.success}</p>
+            )}
+            {pushStatus.error && (
+              <p style={styles.pushError}>{pushStatus.error}</p>
+            )}
           </div>
         )}
       </div>
@@ -133,7 +177,7 @@ export default function HomePage() {
   );
 }
 
-// Basic CSS-in-JS for styling
+// --- Styles (with new additions) ---
 const styles = {
   container: {
     display: "flex",
@@ -218,18 +262,52 @@ const styles = {
     borderRadius: "4px",
     whiteSpace: "pre-wrap",
     wordWrap: "break-word",
-    maxHeight: "400px",
+    maxHeight: "300px",
     overflowY: "auto",
   },
-  copyButton: {
-    display: "block",
-    width: "100px",
-    margin: "15px 0 0 auto",
-    background: "#22a55a",
-    color: "white",
+  // New Styles
+  pushContainer: { display: "flex", gap: "10px", marginTop: "20px" },
+  pushButton: {
+    flex: 1,
+    padding: "10px",
     border: "none",
-    padding: "8px",
     borderRadius: "4px",
+    fontSize: "14px",
     cursor: "pointer",
+    fontWeight: "600",
+  },
+  pushButtonDev: {
+    flex: 1,
+    padding: "10px",
+    border: "none",
+    borderRadius: "4px",
+    fontSize: "14px",
+    cursor: "pointer",
+    fontWeight: "600",
+    background: "#ffc107",
+    color: "#333",
+  },
+  pushButtonProd: {
+    flex: 1,
+    padding: "10px",
+    border: "none",
+    borderRadius: "4px",
+    fontSize: "14px",
+    cursor: "pointer",
+    fontWeight: "600",
+    background: "#dc3545",
+    color: "white",
+  },
+  pushSuccess: {
+    color: "green",
+    fontWeight: "bold",
+    textAlign: "center",
+    marginTop: "15px",
+  },
+  pushError: {
+    color: "red",
+    fontWeight: "bold",
+    textAlign: "center",
+    marginTop: "15px",
   },
 };
