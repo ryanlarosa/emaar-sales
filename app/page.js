@@ -15,28 +15,36 @@ export default function HomePage() {
     error: "",
   });
 
-  const getPreviousMonthRange = () => {
+  // **THE FIX: This function now uses UTC for accurate date calculations.**
+  const getPreviousMonthRangeUTC = () => {
     const today = new Date();
+    // Use UTC methods to avoid timezone shifts
     const firstDayOfCurrentMonth = new Date(
-      today.getFullYear(),
-      today.getMonth(),
-      1
+      Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1)
     );
     const lastDayOfPreviousMonth = new Date(
       firstDayOfCurrentMonth.getTime() - 1
     );
     const firstDayOfPreviousMonth = new Date(
-      lastDayOfPreviousMonth.getFullYear(),
-      lastDayOfPreviousMonth.getMonth(),
-      1
+      Date.UTC(
+        lastDayOfPreviousMonth.getUTCFullYear(),
+        lastDayOfPreviousMonth.getUTCMonth(),
+        1
+      )
     );
+
+    // Convert UTC dates to YYYY-MM-DD format for the input fields
+    const toYYYYMMDD = (date) => {
+      return date.toISOString().split("T")[0];
+    };
+
     return {
-      from: firstDayOfPreviousMonth.toISOString().split("T")[0],
-      to: lastDayOfPreviousMonth.toISOString().split("T")[0],
+      from: toYYYYMMDD(firstDayOfPreviousMonth),
+      to: toYYYYMMDD(lastDayOfPreviousMonth),
     };
   };
 
-  const [dateRange, setDateRange] = useState(getPreviousMonthRange());
+  const [dateRange, setDateRange] = useState(getPreviousMonthRangeUTC());
 
   const handleDateChange = (e) => {
     setDateRange({ ...dateRange, [e.target.name]: e.target.value });
@@ -47,7 +55,7 @@ export default function HomePage() {
     setIsLoading(true);
     setError("");
     setResult(null);
-    setPushStatus({ loading: false, success: "", error: "" }); // Reset push status
+    setPushStatus({ loading: false, success: "", error: "" });
 
     try {
       const response = await fetch("/api/process-sales", {
@@ -88,7 +96,6 @@ export default function HomePage() {
           data.message || `Failed to push data to ${environment}`
         );
 
-      // **THE FIX: Create a specific success message based on the environment.**
       const successMessage = `Successfully pushed to ${environment.toUpperCase()} environment.`;
       setPushStatus({ loading: false, success: successMessage, error: "" });
     } catch (err) {
@@ -165,7 +172,6 @@ export default function HomePage() {
                 {pushStatus.loading ? "Pushing..." : "Push to PROD"}
               </button>
             </div>
-            {/* The specific success message will now be displayed here */}
             {pushStatus.success && (
               <p style={styles.pushSuccess}>{pushStatus.success}</p>
             )}
