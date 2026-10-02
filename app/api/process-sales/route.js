@@ -2,16 +2,28 @@
 
 import { NextResponse } from "next/server";
 
-// Helper function to format the date as DD-Mon-YYYY
-const formatDateForLinga = (isoDate) => {
-  const date = new Date(isoDate);
-  const userTimezoneOffset = date.getTimezoneOffset() * 60000;
-  const correctedDate = new Date(date.getTime() + userTimezoneOffset);
+// Helper function to format the date as DD-Mon-YYYY (e.g. 01-Sep-2026)
+const MONTHS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
 
-  const day = String(correctedDate.getDate()).padStart(2, "0");
-  const month = correctedDate.toLocaleString("en-GB", { month: "short" });
-  const year = correctedDate.getFullYear();
-  return `${day}-${month}-${year}`;
+const formatDateForLinga = (isoDate) => {
+  // Input expected as YYYY-MM-DD
+  const parts = isoDate.split("-");
+  if (parts.length === 3) {
+    const [year, month, day] = parts;
+    const monthIndex = parseInt(month, 10) - 1;
+    const monthAbbr = MONTHS[monthIndex] || month;
+    return `${day.padStart(2, "0")}-${monthAbbr}-${year}`;
+  }
+
+  // Fallback if full ISO timestamp was passed
+  const date = new Date(isoDate);
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  const monthAbbr = MONTHS[date.getUTCMonth()];
+  const year = date.getUTCFullYear();
+  return `${day}-${monthAbbr}-${year}`;
 };
 
 export async function POST(request) {
